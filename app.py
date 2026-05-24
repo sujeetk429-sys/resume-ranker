@@ -1,41 +1,55 @@
 import streamlit as st
+import google.generativeai as genai
+import os
+from dotenv import load_dotenv
 
-st.title("AI Resume Scanner & Job Ranker")
+# Load API key
+load_dotenv()
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# Input
-resume = st.text_area("Paste Your Resume")
-job = st.text_area("Paste Job Description")
+model = genai.GenerativeModel("gemini-1.5-flash")
 
-def analyze(resume, job):
-    resume_set = set(resume.lower().split())
-    job_set = set(job.lower().split())
+st.set_page_config(page_title="AI Resume Scanner", layout="centered")
 
-    matched = resume_set.intersection(job_set)
-    missing = job_set - resume_set
+st.title("🧠 AI Resume Scanner & Job Ranker")
 
-    if len(job_set) == 0:
-        return 0, set(), set()
+st.markdown("Paste your resume and job description to get AI-powered insights.")
 
-    score = (len(matched) / len(job_set)) * 100
-    return score, matched, missing
+resume = st.text_area("📄 Paste Resume", height=200)
+job = st.text_area("💼 Paste Job Description", height=200)
+
+def get_ai_analysis(resume, job):
+    prompt = f"""
+    You are an expert HR assistant.
+
+    Compare this resume and job description:
+
+    RESUME:
+    {resume}
+
+    JOB DESCRIPTION:
+    {job}
+
+    Provide:
+    1. Match score out of 100
+    2. Matched skills
+    3. Missing skills
+    4. Final recommendation (Hire / Maybe / Reject)
+    5. Short explanation
+    """
+
+    response = model.generate_content(prompt)
+    return response.text
 
 
-if st.button("Analyze"):
-    score, matched, missing = analyze(resume, job)
+if st.button("🚀 Analyze"):
+    if resume and job:
+        with st.spinner("AI is analyzing..."):
+            result = get_ai_analysis(resume, job)
 
-    st.subheader("Match Score")
-    st.write(round(score, 2), "%")
+        st.success("Analysis Complete")
 
-    st.subheader("Matched Skills")
-    st.write(matched)
-
-    st.subheader("Missing Skills")
-    st.write(missing)
-
-    # Simple ranking logic
-    if score > 60:
-        st.success("Strong Match - Apply Recommended")
-    elif score > 30:
-        st.warning("Moderate Match - Review before applying")
+        st.markdown("### 📊 AI Result")
+        st.write(result)
     else:
-        st.error("Weak Match - Not Recommended")
+        st.error("Please enter both resume and job description")
